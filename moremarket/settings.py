@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     'ckeditor',
     'ckeditor_uploader',
     'django_cognito_jwt',
+    'channels',
 
 
 
@@ -87,6 +88,18 @@ INSTALLED_APPS = [
     'gestionMensajeria',
     'gestionReview',
 ]
+
+
+
+# settings.py
+ASGI_APPLICATION = 'moremarket.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
+
 
 
 CKEDITOR_CONFIGS = {
