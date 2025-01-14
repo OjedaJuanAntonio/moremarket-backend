@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from .models import Auction, Bid
 from .serializers import AuctionSerializer, BidSerializer
 from channels.layers import get_channel_layer
@@ -29,18 +30,28 @@ class BidViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Verificar que el usuario esté autenticado
         if not self.request.user or not self.request.user.is_authenticated:
-            raise ValueError("El usuario debe estar autenticado para realizar una puja.")
+            raise ValidationError("El usuario debe estar autenticado para realizar una puja.")
 
-        # Guardar la nueva puja y asignar el usuario autenticado
-        bid = serializer.save(user=self.request.user)
+        bid = serializer.validated_data['amount']
+        auction = serializer.validated_data['auction']
+
+        # Obtener la puja más alta existente
+        highest_bid = auction.bids.order_by('-amount').first()
+
+        # Validar que la nueva puja sea mayor que la más alta
+        if highest_bid and bid <= highest_bid.amount:
+            raise ValidationError("La puja debe ser mayor que la puja más alta actual.")
+
+        # Guardar la nueva puja
+        bid_instance = serializer.save(user=self.request.user)
 
         # Enviar mensaje al grupo de WebSocket
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f'auction_{bid.auction.id}',
+            f'auction_{bid_instance.auction.id}',
             {
                 'type': 'auction_bid',
-                'amount': str(bid.amount),
-                'user': bid.user.username,
+                'amount': str(bid_instance.amount),
+                'user': bid_instance.user.username,
             }
         )
