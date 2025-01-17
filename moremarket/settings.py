@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 # import os
 # import environ
 
@@ -26,18 +27,22 @@ ALLOWED_HOSTS = ['*']
 #---Autenticacion de aws cognito---#
 
 # AWS Cognito settings
-COGNITO_AWS_REGION = config("COGNITO_AWS_REGION", default="us-east-1")
-COGNITO_USER_POOL_ID = config("COGNITO_USER_POOL_ID")
-COGNITO_APP_CLIENT_ID = config("COGNITO_APP_CLIENT_ID")
-COGNITO_JWT_HEADER = "Authorization"
+# COGNITO_AWS_REGION = config("COGNITO_AWS_REGION", default="us-east-1")
+# COGNITO_USER_POOL_ID = config("COGNITO_USER_POOL_ID")
+# COGNITO_APP_CLIENT_ID = config("COGNITO_APP_CLIENT_ID")
+# COGNITO_JWT_HEADER = "Authorization"
+
+from rest_framework.permissions import AllowAny 
+
 
 # Configurar REST framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ],
 }
 
@@ -45,14 +50,19 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
 
 
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.google.GoogleOAuth2',  # Si usas Google, agrega los proveedores necesarios
+    'django.contrib.auth.backends.ModelBackend',
+)
 
 # Application definition
 
@@ -69,7 +79,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'djoser',
-    'social_django',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'ckeditor',
@@ -87,6 +96,9 @@ INSTALLED_APPS = [
     'gestionTransacciones',
     'gestionMensajeria',
     'gestionReview',
+
+    #esta tiene qu estar después de gestionususrios
+    'social_django',
 ]
 
 
@@ -99,6 +111,10 @@ CHANNEL_LAYERS = {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
     },
 }
+
+# settings.py
+# AUTH_USER_MODEL = 'gestionUsuarios.CustomUser'
+AUTH_USER_MODEL = 'gestionUsuarios.CustomUser'
 
 
 
@@ -176,21 +192,6 @@ CSRF_TRUSTED_ORIGIN = [ #host de mi dominio después
     'http://127.0.0.1:8000',
 ]
 
-
-# PASSWORD_HASHERS = [
-#     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
-#     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
-#     'django.contrib.auth.hashers.Argon2PasswordHasher',
-#     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
-#     'django.contrib.auth.hashers.BCryptPasswordHasher',
-#     'django.contrib.auth.hashers.SHA1PasswordHasher',
-#     'django.contrib.auth.hashers.MD5PasswordHasher',
-#     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
-#     'django.contrib.auth.hashers.Argon2PasswordHasher',
-#     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
-#     'django.contrib.auth.hashers.ScryptPasswordHasher',
-#     'django.contrib.auth.hashers.UnsaltedSHA1PasswordHasher',
-# ]
 
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
