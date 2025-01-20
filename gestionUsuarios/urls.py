@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterView, ProfileView, LoginView, ProtectedView, LogoutView
+from .views import RegisterView, ProfileView, LoginView, ProtectedView, LogoutView, CookieTokenRefreshView
 
 
 urlpatterns = [
@@ -8,4 +8,5 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),  # Login
     path('protected/', ProtectedView.as_view(), name='protected'),  # Ruta protegida
     path('logout/', LogoutView.as_view(), name='logout'),  # Nueva ruta para logout
+    path('token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),  # Ruta para renovar el token
 ]

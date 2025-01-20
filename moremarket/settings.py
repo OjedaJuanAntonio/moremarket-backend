@@ -45,6 +45,15 @@ INSTALLED_APPS = [
     'social_django',
 ]
 
+
+CSRF_COOKIE_SECURE = True  # Activar solo para HTTPS en producción
+SESSION_COOKIE_SECURE = True  # Activar solo para HTTPS en producción
+
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
+
+
+
 # Middleware configuration
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -163,7 +172,11 @@ CHANNEL_LAYERS = {
     },
 }
 
+
 # CORS and CSRF configuration
+
+CORS_ALLOW_CREDENTIALS = True  # Permite enviar cookies
+
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
