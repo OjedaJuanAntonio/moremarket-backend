@@ -1,124 +1,67 @@
-# from rest_framework import viewsets, permissions
-# from rest_framework.response import Response
-# from rest_framework.exceptions import ValidationError
-# from .models import Auction, Bid
-# from .serializers import AuctionSerializer, BidSerializer
-# from channels.layers import get_channel_layer
-# from asgiref.sync import async_to_sync
-
-
-# # ✅ ViewSet para las subastas (CRUD completo)
-# class AuctionViewSet(viewsets.ModelViewSet):
-#     queryset = Auction.objects.all()
-#     serializer_class = AuctionSerializer
-#     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
-#     def retrieve(self, request, pk=None):
-#         try:
-#             auction = Auction.objects.get(pk=pk)
-#             serializer = AuctionSerializer(auction)
-#             return Response(serializer.data)
-#         except Auction.DoesNotExist:
-#             return Response({'error': 'Subasta no encontrada'}, status=404)
-
-#     def destroy(self, request, *args, **kwargs):
-#         instance = self.get_object()
-#         instance.delete()
-#         return Response({"detail": "Subasta eliminada con éxito."})
-
-
-# # ✅ ViewSet para las pujas (con validación y WebSocket)
-# class BidViewSet(viewsets.ModelViewSet):
-#     queryset = Bid.objects.all()
-#     serializer_class = BidSerializer
-#     permission_classes = [permissions.IsAuthenticated]
-
-#     def perform_create(self, serializer):
-#         auction = serializer.validated_data['auction']
-#         new_bid_amount = serializer.validated_data['amount']
-
-#         # Validar que la nueva puja sea mayor que la más alta actual o el precio inicial
-#         highest_bid = auction.bids.order_by('-amount').first()
-#         starting_price = auction.product.price
-
-#         if highest_bid:
-#             if new_bid_amount <= highest_bid.amount:
-#                 raise ValidationError({'detail': f'La puja debe ser mayor que ${highest_bid.amount}.'})
-#         else:
-#             if new_bid_amount < starting_price:
-#                 raise ValidationError({'detail': f'La puja debe ser al menos de ${starting_price}.'})
-
-#         # Guardar la nueva puja
-#         bid = serializer.save(user=self.request.user)
-
-#         # Enviar mensaje al grupo de WebSocket
-#         channel_layer = get_channel_layer()
-#         async_to_sync(channel_layer.group_send)(
-#             f'auction_{bid.auction.id}',
-#             {
-#                 'type': 'auction_bid',
-#                 'amount': str(bid.amount),
-#                 'user': bid.user.username,
-#             }
-#         )
-
-
-
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from .models import Auction, Bid
 from .serializers import AuctionSerializer, BidSerializer
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
-# ViewSet para las subastas
+
 class AuctionViewSet(viewsets.ModelViewSet):
     queryset = Auction.objects.all()
     serializer_class = AuctionSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly]  # GET público, otros métodos requieren autenticación
 
-    def retrieve(self, request, pk=None):
-        try:
-            auction = Auction.objects.get(pk=pk)
-            serializer = AuctionSerializer(auction)
-            return Response(serializer.data)
-        except Auction.DoesNotExist:
-            return Response({'error': 'Subasta no encontrada'}, status=404)
+    def list(self, request, *args, **kwargs):
+        """
+        Lista todas las subastas activas, ordenadas por la fecha de inicio.
+        """
+        queryset = Auction.objects.filter(is_active=True).order_by('-start_time')  # Solo subastas activas
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.delete()
-        return Response({"detail": "Subasta eliminada con éxito."})
+    def perform_create(self, serializer):
+        """
+        Asigna automáticamente el usuario autenticado como creador de la subasta.
+        """
+        serializer.save(created_by=self.request.user)
 
-# ViewSet para las pujas
+
 class BidViewSet(viewsets.ModelViewSet):
     queryset = Bid.objects.all()
     serializer_class = BidSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]  # Requiere autenticación para realizar una puja
 
     def perform_create(self, serializer):
+        """
+        Valida y crea una nueva puja, asociándola al usuario autenticado.
+        """
         auction = serializer.validated_data['auction']
         new_bid_amount = serializer.validated_data['amount']
 
-        highest_bid = auction.bids.order_by('-amount').first()
-        starting_price = auction.product.price
+        # Obtener la puja más alta actual
+        highest_bid = auction.get_highest_bid()
 
-        if highest_bid:
-            if new_bid_amount <= highest_bid.amount:
-                raise ValidationError({'detail': f'La puja debe ser mayor que ${highest_bid.amount}.'})
-        else:
-            if new_bid_amount < starting_price:
-                raise ValidationError({'detail': f'La puja debe ser al menos de ${starting_price}.'})
+        # Validar la cantidad de la nueva puja
+        if highest_bid and new_bid_amount <= highest_bid.amount:
+            raise ValidationError({'detail': f'La puja debe ser mayor que ${highest_bid.amount}.'})
+        elif new_bid_amount < auction.starting_price:
+            raise ValidationError({'detail': f'La puja debe ser al menos de ${auction.starting_price}.'})
 
-        bid = serializer.save(user=self.request.user)
+        # Crear la nueva puja asociada al usuario autenticado
+        serializer.save(user=self.request.user)
 
+        # Notificar mediante WebSocket
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f'auction_{bid.auction.id}',
+            f'auction_{auction.id}',  # Canal basado en la ID de la subasta
             {
                 'type': 'auction_bid',
-                'amount': str(bid.amount),
-                'user': bid.user.username,
+                'message': {
+                    'amount': str(new_bid_amount),
+                    'user': self.request.user.username,
+                    'auction_id': auction.id,
+                }
             }
         )

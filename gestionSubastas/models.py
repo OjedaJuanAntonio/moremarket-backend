@@ -1,68 +1,111 @@
-# # gestionSubastas/models.py
 # from django.db import models
-# from gestionTienda.models import Product
-# from django.contrib.auth.models import User
+# from django.utils.timezone import now
+# from django.conf import settings  # Para usar el modelo de usuario autenticado
+# from django.core.exceptions import ValidationError
+
 
 # class Auction(models.Model):
-#     product = models.OneToOneField(Product, on_delete=models.CASCADE)
-#     start_time = models.DateTimeField()
-#     end_time = models.DateTimeField()
-#     is_active = models.BooleanField(default=True)
+#     item_name = models.CharField(max_length=255)  # Nombre del artículo
+#     item_description = models.TextField(default="Sin descripción", blank=True)  # Descripción del artículo
+#     item_image = models.URLField(max_length=500, blank=True, null=True)  # Imagen del artículo
+#     starting_price = models.DecimalField(max_digits=10, decimal_places=2)  # Precio inicial
+#     start_time = models.DateTimeField()  # Fecha y hora de inicio
+#     end_time = models.DateTimeField()  # Fecha y hora de finalización
+#     is_active = models.BooleanField(default=True)  # Indica si la subasta está activa
+#     created_by = models.ForeignKey(  # Usuario que creó la subasta
+#         settings.AUTH_USER_MODEL,
+#         on_delete=models.CASCADE,
+#         related_name="auctions"
+#     )
 
 #     def __str__(self):
-#         return f"Auction for {self.product.name}"
+#         return f"Subasta: {self.item_name} creada por {self.created_by.username}"
+
+#     def clean(self):
+#         # Validación: la fecha de inicio debe ser anterior a la fecha de finalización
+#         if self.start_time >= self.end_time:
+#             raise ValidationError("La fecha de inicio debe ser anterior a la fecha de finalización.")
+#         # Validación: la subasta no debe empezar en el pasado
+#         if self.start_time < now():
+#             raise ValidationError("La fecha de inicio no puede estar en el pasado.")
+
+#     def get_highest_bid(self):
+#         # Obtiene la puja más alta de la subasta
+#         return self.bids.order_by('-amount').first()
+
 
 # class Bid(models.Model):
 #     auction = models.ForeignKey(Auction, on_delete=models.CASCADE, related_name='bids')
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)  # Se asocia con el usuario autenticado
-#     amount = models.DecimalField(max_digits=10, decimal_places=2)
-#     created_at = models.DateTimeField(auto_now_add=True)
+#     user = models.ForeignKey(  # Usuario autenticado que realizó la puja
+#         settings.AUTH_USER_MODEL,
+#         on_delete=models.CASCADE,
+#         related_name="bids"
+#     )
+#     amount = models.DecimalField(max_digits=10, decimal_places=2)  # Cantidad de la puja
+#     created_at = models.DateTimeField(auto_now_add=True)  # Fecha y hora de la puja
 
 #     def __str__(self):
-#         return f"Puja de {self.user.username} por {self.amount} en {self.auction.product.name}"
+#         return f"Puja de {self.user.username} por {self.amount} en {self.auction.item_name}"
 
-# gestionSubastas/models.py
+#     def clean(self):
+#         # Validación: la puja debe ser mayor que la más alta existente
+#         highest_bid = self.auction.get_highest_bid()
+#         if highest_bid and self.amount <= highest_bid.amount:
+#             raise ValidationError("La cantidad de la puja debe ser mayor que la puja más alta actual.")
+
+
+
 from django.db import models
-from gestionTienda.models import Product
-from django.core.exceptions import ValidationError
 from django.utils.timezone import now
-from django.conf import settings  # Importa settings
+from django.conf import settings  # Para usar el modelo de usuario autenticado
+from django.core.exceptions import ValidationError
 
 
 class Auction(models.Model):
-    product = models.OneToOneField(Product, on_delete=models.CASCADE)
-    start_time = models.DateTimeField()
-    end_time = models.DateTimeField()
-    is_active = models.BooleanField(default=True)
+    item_name = models.CharField(max_length=255)  # Nombre del artículo
+    item_description = models.TextField(default="Sin descripción", blank=True)  # Descripción del artículo
+    item_image = models.URLField(max_length=500, blank=True, null=True)  # Imagen del artículo
+    starting_price = models.DecimalField(max_digits=10, decimal_places=2)  # Precio inicial
+    start_time = models.DateTimeField()  # Fecha y hora de inicio
+    end_time = models.DateTimeField()  # Fecha y hora de finalización
+    is_active = models.BooleanField(default=True)  # Indica si la subasta está activa
+    created_by = models.ForeignKey(  # Usuario que creó la subasta
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="auctions"
+    )
 
     def __str__(self):
-        return f"Auction for {self.product.name}"
+        return f"Subasta: {self.item_name} creada por {self.created_by.username}"
 
     def clean(self):
-        # Validación: La fecha de inicio debe ser anterior a la fecha de fin
+        # Validación: la fecha de inicio debe ser anterior a la fecha de finalización
         if self.start_time >= self.end_time:
-            raise ValidationError("La fecha de inicio debe ser anterior a la fecha de fin.")
-
-    def place_bid(self, user, amount):
-        if not self.is_active or now() > self.end_time:
-            raise ValidationError("La subasta ya ha terminado.")
-        highest_bid = self.get_highest_bid()
-        if highest_bid and amount <= highest_bid.amount:
-            raise ValidationError("La puja debe ser mayor que la puja más alta actual.")
-        Bid.objects.create(auction=self, user=user, amount=amount)
+            raise ValidationError("La fecha de inicio debe ser anterior a la fecha de finalización.")
+        # Validación: la subasta no debe empezar en el pasado
+        if self.start_time < now():
+            raise ValidationError("La fecha de inicio no puede estar en el pasado.")
 
     def get_highest_bid(self):
+        # Obtiene la puja más alta de la subasta
         return self.bids.order_by('-amount').first()
 
 
 class Bid(models.Model):
     auction = models.ForeignKey(Auction, on_delete=models.CASCADE, related_name='bids')
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,  # Usa la referencia al modelo personalizado
-        on_delete=models.CASCADE
+    user = models.ForeignKey(  # Usuario autenticado que realizó la puja
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="bids"
     )
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    created_at = models.DateTimeField(auto_now_add=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)  # Cantidad de la puja
+    created_at = models.DateTimeField(auto_now_add=True)  # Fecha y hora de la puja
 
     def __str__(self):
-        return f"Puja de {self.user.username} por {self.amount} en {self.auction.product.name}"
+        return f"Puja de {self.user.username} por {self.amount} en {self.auction.item_name}"
+
+    def clean(self):
+        # Validación: la puja debe ser mayor que la más alta existente
+        highest_bid = self.auction.get_highest_bid()
+        if highest_bid and self.amount <= highest_bid.amount:
+            raise ValidationError("La cantidad de la puja debe ser mayor que la puja más alta actual.")
