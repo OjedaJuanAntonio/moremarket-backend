@@ -1,6 +1,6 @@
-from django.urls import path
+from django.urls import re_path
 from .consumers import AuctionConsumer
 
 websocket_urlpatterns = [
-    path('ws/auctions/<int:auction_id>/', AuctionConsumer.as_asgi()),
+    re_path(r'ws/auctions/(?P<auction_id>\w+)/$', AuctionConsumer.as_asgi()),
 ]
