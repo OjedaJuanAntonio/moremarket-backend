@@ -1,62 +1,13 @@
-# # gestionSubastas/consumers.py
-# import json
-# from channels.generic.websocket import AsyncWebsocketConsumer
-
-# class AuctionConsumer(AsyncWebsocketConsumer):
-#     async def connect(self):
-#         self.auction_id = self.scope['url_route']['kwargs']['auction_id']
-#         self.room_group_name = f'auction_{self.auction_id}'
-
-#         # Únete al grupo de la subasta
-#         await self.channel_layer.group_add(
-#             self.room_group_name,
-#             self.channel_name
-#         )
-
-#         await self.accept()
-
-#     async def disconnect(self, close_code):
-#         # Salir del grupo de la subasta
-#         await self.channel_layer.group_discard(
-#             self.room_group_name,
-#             self.channel_name
-#         )
-
-#     # Recibir mensaje del WebSocket
-#     async def receive(self, text_data):
-#         text_data_json = json.loads(text_data)
-#         amount = text_data_json['amount']
-#         user = text_data_json['user']
-
-#         # Enviar mensaje a la sala del grupo
-#         await self.channel_layer.group_send(
-#             self.room_group_name,
-#             {
-#                 'type': 'auction_bid',
-#                 'amount': amount,
-#                 'user': user,
-#             }
-#         )
-
-#     # Manejar evento de puja
-#     async def auction_bid(self, event):
-#         amount = event['amount']
-#         user = event['user']
-
-#         # Enviar mensaje al WebSocket
-#         await self.send(text_data=json.dumps({
-#             'amount': amount,
-#             'user': user,
-#         }))
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 class AuctionConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        """Conecta al WebSocket y se une a la sala de la subasta"""
         self.auction_id = self.scope['url_route']['kwargs']['auction_id']
         self.room_group_name = f'auction_{self.auction_id}'
 
-        # Únete al grupo de la subasta
+        # Unirse al grupo de la subasta
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
@@ -65,31 +16,47 @@ class AuctionConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
-        # Salir del grupo de la subasta
+        """Salir del grupo de la subasta al desconectarse"""
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
 
-    # Recibir mensaje de una puja
     async def receive(self, text_data):
-        data = json.loads(text_data)
+        """Recibir mensaje desde el WebSocket del cliente"""
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
+            return
+
         amount = data.get('amount')
         user = data.get('user')
+        created_at = data.get('created_at', '')
 
-        # Enviar mensaje a la sala del grupo
+        if not amount or not user:
+            return  # Evita mensajes vacíos
+
+        # Enviar mensaje al grupo de la subasta
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'auction_bid',
-                'amount': amount,
-                'user': user,
+                'message': {
+                    'amount': amount,
+                    'user': user,
+                    'created_at': created_at,
+                    'auction_id': self.auction_id
+                }
             }
         )
 
-    # Manejar evento de puja
     async def auction_bid(self, event):
+        """Maneja la distribución de la puja a los clientes conectados"""
+        bid_data = event.get("message", {})
+
         await self.send(text_data=json.dumps({
-            'amount': event['amount'],
-            'user': event['user'],
+            'amount': bid_data.get("amount", ""),
+            'user': bid_data.get("user", ""),
+            'created_at': bid_data.get("created_at", ""),
+            'auction_id': bid_data.get("auction_id", ""),
         }))

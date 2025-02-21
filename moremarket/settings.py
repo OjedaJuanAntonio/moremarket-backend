@@ -40,6 +40,9 @@ INSTALLED_APPS = [
     'gestionTransacciones',
     'gestionMensajeria',
     'gestionReview',
+    'dashboard',
+    'chat',
+
 
     # Social authentication (if needed)
     'social_django',
