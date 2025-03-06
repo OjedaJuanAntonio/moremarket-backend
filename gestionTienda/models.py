@@ -19,7 +19,8 @@ class Product(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.URLField(max_length=500, blank=True, null=True)
+    # Cambiado de URLField a ImageField para manejo de archivos
+    image = models.ImageField(upload_to='products/', blank=True, null=True)
     stock = models.PositiveIntegerField(default=0)
     is_approved = models.BooleanField(default=False)  # Control de aprobación
     created_at = models.DateTimeField(auto_now_add=True)

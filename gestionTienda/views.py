@@ -1,17 +1,15 @@
 from rest_framework import viewsets
+from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
+from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Category, Product, Order, ProductVariant, ProductReview, OrderItem
 from .serializers import (
     CategorySerializer, ProductSerializer, OrderSerializer, 
     ProductVariantSerializer, ProductReviewSerializer, OrderItemSerializer
 )
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.decorators import action
-from rest_framework.response import Response
-# from rest_framework import status
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from gestionTienda.models import Order, Product
-
 
 # Clase de paginación estándar
 class StandardResultsSetPagination(PageNumberPagination):
@@ -29,13 +27,14 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def products(self, request, pk=None):
         category = self.get_object()
         products = Product.objects.filter(category=category, is_approved=True)
-        serializer = ProductSerializer(products, many=True)
+        serializer = ProductSerializer(products, many=True, context={'request': request})
         return Response(serializer.data)
 
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     pagination_class = StandardResultsSetPagination
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         qs = Product.objects.all()

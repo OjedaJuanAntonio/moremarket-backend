@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
+import os
 
 # Base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -13,6 +14,10 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 # Allowed hosts
 ALLOWED_HOSTS = ['*']
+
+
+
+
 
 # Installed applications
 INSTALLED_APPS = [
@@ -153,9 +158,24 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files
-STATIC_URL = 'static/'
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+
+# Archivos estáticos (CSS, JS, etc.)
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Archivos de medios (imágenes subidas por los usuarios)
+MEDIA_URL = '/media/'  # La URL para acceder a las imágenes
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # Carpeta donde se guardarán los archivos
+
+
+
+
+# # Static files
+# STATIC_URL = 'static/'
+# DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Media files (CKEditor)
 CKEDITOR_UPLOAD_PATH = '/media/'

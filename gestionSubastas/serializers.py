@@ -18,19 +18,35 @@ class BidSerializer(serializers.ModelSerializer):
 
 class AuctionSerializer(serializers.ModelSerializer):
     bids = BidSerializer(many=True, read_only=True)
-    created_by = UserSerializer(read_only=True)  # Ahora muestra id y email
+    created_by = UserSerializer(read_only=True)
+    item_image = serializers.ImageField(allow_null=True, required=False)
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = Auction
         fields = [
-            'id', 
-            'item_name', 
-            'item_description', 
-            'item_image', 
+            'id',
+            'item_name',
+            'item_description',
+            'item_image',
             'starting_price',
-            'start_time', 
-            'end_time', 
-            'is_active', 
-            'created_by', 
+            'start_time',
+            'end_time',
+            'status',
+            'created_by',
             'bids'
         ]
+
+    def get_status(self, obj):
+        return obj.get_status()
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        image = representation.get('item_image')
+        if image:
+            # Si la imagen no es externa, se construye la URL absoluta
+            if not image.startswith("http"):
+                request = self.context.get("request")
+                if request:
+                    representation['item_image'] = request.build_absolute_uri(image)
+        return representation
